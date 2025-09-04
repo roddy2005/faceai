@@ -1,0 +1,37 @@
+{
+  "name": "face-demo-electron",
+  "version": "1.0.0",
+  "description": "Offline FaceAPI webcam demo packaged as a Windows .exe (Electron)",
+  "author": "Your School",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "prepare-assets": "node scripts/get-models.js && node scripts/copy-face-lib.js",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "kr.school.face.demo",
+    "productName": "FaceAPI-Webcam-Offline",
+    "files": [
+      "public/**",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "directories": {
+      "buildResources": "public"
+    }
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "@vladmandic/face-api": "^1.7.15"
+  }
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8" />
+<title>FaceAPI Webcam (Offline)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; display: flex; gap: 16px; align-items: flex-start; }
+  #wrap { position: relative; }
+  video, canvas { width: 640px; height: 480px; border-radius: 10px; }
+  #log { white-space: pre; margin: 0; }
+  .box { padding: 12px; border: 1px solid #ddd; border-radius: 10px; }
+</style>
+<body>
+  <div id="wrap" class="box">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="overlay"></canvas>
+  </div>
+  <div class="box" style="min-width:280px;">
+    <h3>표정</h3>
+    <pre id="log">loading...</pre>
+    <details style="margin-top:8px;">
+      <summary>안내</summary>
+      <small>이 앱은 모든 처리를 로컬 장치에서 수행하며, 영상·이미지를 외부로 전송하거나 저장하지 않습니다.</small>
+    </details>
+  </div>
+
+  <!-- Offline FaceAPI bundle (copied into public/face-api.min.js by script) -->
+  <script src="./face-api.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('overlay');
+    const ctx = canvas.getContext('2d');
+    const log = document.getElementById('log');
+
+    async function loadModels() {
+      const base = './models';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(base);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(base);
+      await faceapi.nets.faceExpressionNet.loadFromUri(base);
+      // optional:
+      // await faceapi.nets.ageGenderNet.loadFromUri(base);
+      // await faceapi.nets.faceRecognitionNet.loadFromUri(base);
+    }
+
+    async function start() {
+      await loadModels();
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      video.srcObject = stream;
+      log.textContent = 'camera on';
+
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+
+      function drawLoop() {
+        if (video.readyState >= 2) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        faceapi
+          .detectSingleFace(video, options)
+          .withFaceLandmarks()
+          .withFaceExpressions()
+          .then(result => {
+            if (!result) return requestAnimationFrame(drawLoop);
+            const { detection, landmarks, expressions } = result;
+            const { x, y, width, height } = detection.box;
+            ctx.lineWidth = 2; ctx.strokeStyle = 'lime';
+            ctx.strokeRect(x, y, width, height);
+            ctx.fillStyle = 'cyan';
+            landmarks.positions.forEach(p => ctx.fillRect(p.x, p.y, 2, 2));
+            const top = Object.entries(expressions)
+              .sort((a,b) => b[1]-a[1]).slice(0,3)
+              .map(([k,v]) => `${k.padEnd(10)}: ${v.toFixed(2)}`)
+              .join('\n');
+            log.textContent = top;
+          })
+          .finally(() => requestAnimationFrame(drawLoop));
+      }
+      requestAnimationFrame(drawLoop);
+    }
+
+    start().catch(err => log.textContent = String(err));
+  </script>
+</body>
+</html>
